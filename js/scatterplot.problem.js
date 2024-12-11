@@ -1,13 +1,13 @@
 function scatter_plot(
-                                 data, 
-                                 ax, 
-                                 title = "", 
-                                 xCol = "", 
-                                 yCol = "", 
-                                 rCol = "", 
-                                 legend = [], 
-                                 colorCol = "", 
-                                 margin = 50) 
+    data, 
+    ax, 
+    title = "", 
+    xCol = "", 
+    yCol = "", 
+    rCol = "", 
+    legend = [], 
+    colorCol = "", 
+    margin = 50) 
 {
     const X = data.map(d => d[xCol]);
     const Y = data.map(d => d[yCol]);
@@ -96,44 +96,36 @@ function scatter_plot(
     Fig.call(brush);
 
     function brushStart() {
-        // if no selection already exists, remove the class
-        if (d3.brushSelection(this)[0][0] === d3.brushSelection(this)[1][0]) {
+        if (!d3.brushSelection(this)) {
             d3.selectAll("circle").classed("selected", false);
         }
     }
 
     function brushed() {
         // Get brush selection bounds
-        let selected_coordinates = d3.brushSelection(this); // values on the screen
-        if (!selected_coordinates) return; // Exit if no selection exists
+        let selected_coordinates = d3.brushSelection(this);
+        if (!selected_coordinates) return;
 
         const X1 = xScale.invert(selected_coordinates[0][0]);
         const X2 = xScale.invert(selected_coordinates[1][0]);
         const Y1 = yScale.invert(selected_coordinates[0][1]);
         const Y2 = yScale.invert(selected_coordinates[1][1]);
 
-        // Select elements within the brush area
-        d3.selectAll("circle").classed("selected", (d, i) => {
-            if (+d[xCol] >= X1 && +d[xCol] <= X2 && +d[yCol] <= Y1 && +d[yCol] >= Y2) {
-                return true;
-            }
-            return false;
+        d3.selectAll("circle").classed("selected", (d) => {
+            return (
+                +d[xCol] >= X1 && +d[xCol] <= X2 && +d[yCol] <= Y1 && +d[yCol] >= Y2
+            );
         });
 
-        // Get all selected points
         const selectedPoints = Array.from(document.querySelectorAll(".selected"));
-        
-        // Extract corresponding data for selected points
         const selectedData = selectedPoints.map(d => {
             const index = +d.id.split(" ")[0].slice(3); // Extract index from the ID
-            return data[index]; // Get the corresponding data entry
+            return data[index];
         });
 
-        // Clear the current list
         const listBox = d3.select('#selected-list');
         listBox.selectAll("li").remove();
 
-        // Populate the list with Model and Type
         if (selectedData.length > 0) {
             listBox.selectAll(".listVals")
                 .data(selectedData)
@@ -155,31 +147,31 @@ function scatter_plot(
         .join("g")
         .attr("transform", (d, i) => `translate(0,${i * 45})`);
 
+    // Legend with interactivity
+    window.categoryStates = {};
+    colorCategories.forEach((cat) => (window.categoryStates[cat] = true));
+
     legends_items.append("rect")
         .attr("fill", d => color(d))
         .attr("width", "40")
         .attr("height", "40")
-        .attr("class", d => d)
-        .attr("font-size", "1.2em")
-        .on("click", function(event, d) {
-            const selectedClass = d;
-            
-            // Fade out all non-selected circles
-            circles.style("opacity", (data) => data[colorCol] === selectedClass ? 1 : 0.2);
+        .attr("class", d => d) 
+        .style("cursor", "pointer")
+        .on("click", function (event, d) {
+            window.categoryStates[d] = !window.categoryStates[d];
 
-            // Fade out all non-selected legend items
-            legends_items.selectAll("rect")
-                .style("opacity", (category) => category === selectedClass ? 1 : 0.2)
-                .style("cursor", "pointer");
+            d3.selectAll("circle").style("opacity", (data) =>
+                window.categoryStates[data[colorCol]] ? 1 : 0.2
+            );
 
-            // Optionally, if you click on the selected class again, reset all to normal opacity
-            if (d3.select(this).classed("selected")) {
-                circles.style("opacity", 1); // Reset all points
-                legends_items.selectAll("rect").style("opacity", 1); // Reset legend opacity
-                d3.select(this).classed("selected", false);
-            } else {
-                d3.select(this).classed("selected", true);
-            }
+            d3.selectAll("rect")
+                .filter(function () {
+                    return d3.select(this).attr("class") != null;
+                })
+                .style("opacity", function () {
+                    const cat = d3.select(this).attr("class");
+                    return window.categoryStates[cat] ? 1 : 0.2;
+                });
         });
 
     legends_items
